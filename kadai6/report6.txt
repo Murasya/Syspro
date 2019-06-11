@@ -1,0 +1,281 @@
+----------------------------------------------------------------------
+学籍番号: 201913557
+名前: 村社光誠
+課題番号：6
+練習問題番号：604
+題名：テキストを扱うHTTPクライアント
+
+・課題601
+　telnet コマンドによって Web サーバへアクセスを行う．
+まず，アクセスしたページのURLは
+(http://www.coins.tsukuba.ac.jp/~syspro/)
+である．
+実際に行ったコマンドを以下に示す．
+
+aloe55:~ s1913557$ telnet www.coins.tsukuba.ac.jp 80 | nkf -w -u
+Trying 2001:2f8:3a:1711::231:114...
+Connected to www.coins.tsukuba.ac.jp.
+Escape character is '^]'.
+GET /~syspro/index.html HTTP/1.0
+Host: www.coins.tsukuba.ac.jp
+
+HTTP/1.1 200 OK
+Date: Wed, 29 May 2019 01:08:11 GMT
+Server: Apache
+Last-Modified: Wed, 17 Apr 2019 05:11:43 GMT
+ETag: "758-586b2ebea987b"
+Accept-Ranges: bytes
+Content-Length: 1880
+Connection: close
+Content-Type: text/html
+
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html;charset=iso-2022-jp">
+<TITLE> システムプログラム
+</TITLE>
+<STYLE TYPE="text/css"><!--
+@import url(coins-syspro.css);
+--></STYLE>
+</HEAD>
+
+<BODY>
+
+<H1><A ID="title">システムプログラム</A></H1>
+
+</P><P>
+
+<H2><A ID="2017/" HREF="2019/">■2019年</A></H2>
+    ・・・
+
+・課題602
+HTTP要求メッセージを作成する．
+具体的には，print-http-request-fixed.cを以下のように変更した．
+
+void
+send_http_request_fixed( FILE *out ) {
+    	/* この関数の内容を変更しなさい。
+	   "Change this\n" の部分を変更しなさい。
+	   printf() を使わないで fprintf() を使いなさい。
+	   stdout, stderr を直接使わないで、引数の out を使いなさい。
+	   必要なパラメタは、引数から取る。fgets() は使わない。
+	 */
+    fprintf(out, "GET /~syspro/index.html HTTP/1.0\nHost: www.coins.tsukuba.ac.jp\n\n");
+}
+
+実行結果を以下に示す．
+
+aloe55:kadai6 s1913557$ ./print-http-request-fixed
+GET /~syspro/index.html HTTP/1.0
+Host: www.coins.tsukuba.ac.jp
+
+aloe55:kadai6 s1913557$
+
+・課題603
+課題602を引数付きで行う．
+具体的には，print-http-request.c を以下のように変更した．
+
+void
+http_send_request( char *host, char *file, FILE *out ) {
+    	/* この関数の内容を変更しなさい。
+	   "Change this\n" の部分を変更しなさい。
+	   printf() を使わないで fprintf() を使いなさい。
+	   stdout, stderr を直接使わないで、引数の out を使いなさい。
+	   必要なパラメタは、引数から取る。fgets() は使わない。
+	 */
+    	fprintf(out,"GET %s HTTP/1.0\nHost: %s\n\n", file, host);
+}
+
+実行結果を以下に示す．
+
+aloe55:kadai6 s1913557$ ./print-http-request www.coinst.tsukuba.ac.jp /~syspro/index.html
+GET /~syspro/index.html HTTP/1.0
+Host: www.coinst.tsukuba.ac.jp
+
+aloe55:kadai6 s1913557$
+
+・課題604
+テキストを扱うHTTPクライアントを作成する．
+作成したソースコード wcat.c を以下に示す．
+
+
+/*
+  wcat.c -- テキストを扱うHTTPクライアント
+*/
+
+#include <stdio.h>  /* fprintf() */
+#include <stdlib.h> /* exit() */
+#include <string.h>	/* memset(), memcpy() */
+#include <sys/types.h>	/* socket() */
+#include <sys/socket.h>	/* socket() */
+#include <netinet/in.h>	/* struct sockaddr_in */
+#include <netdb.h>	/* getaddrinfo() */
+#include <string.h>	/* strlen() */
+#include <unistd.h>	/* close() */
+#define N 1024
+#define PORTNO_BUFSIZE 30
+
+extern void http_send_request( char *host, char *file, FILE *out );
+extern	int tcp_connect( char *server, int portno );
+extern  int fdopen_sock( int sock, FILE **inp, FILE **outp );
+
+int
+main( int argc, char *argv[] )
+{
+	char *host, *file, message[N] = {'\0'};
+  int port, sock;
+  FILE *in, *out;
+
+	if( argc != 4 ) {
+		fprintf(stderr,"Usage: %s host port file\n",argv[0] );
+		exit( 1 );
+	}
+	host = argv[1];
+  port = strtol(argv[2], 0, 10);
+	file = argv[3];
+
+  sock = tcp_connect( host, port );
+	if( sock<0 )
+		return( 1 );
+	if( fdopen_sock(sock,&in,&out) < 0 )
+	{
+		fprintf(stderr,"fdooen()\n");
+		close( sock );
+		return( 1 );
+	}
+
+	http_send_request( host, file, out );
+  
+  while (fgets(message, N, in) != NULL ) {
+    printf("%s", message);
+  }
+}
+
+void
+http_send_request( char *host, char *file, FILE *out ) {
+  fprintf(out,"GET %s HTTP/1.0\r\nHost: %s\r\n\r\n", file, host);
+}
+
+int
+tcp_connect( char *server, int portno )
+{
+	struct addrinfo hints, *ai;
+	char portno_str[PORTNO_BUFSIZE];
+	int s, err;
+	snprintf( portno_str,sizeof(portno_str),"%d",portno );
+	memset( &hints, 0, sizeof(hints) );
+	hints.ai_socktype = SOCK_STREAM;
+	if( (err = getaddrinfo( server, portno_str, &hints, &ai )) )
+	{
+		fprintf(stderr,"unknown server %s (%s)\n",server,
+			gai_strerror(err) );
+		goto error0;
+	}
+	if( (s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol)) < 0 )
+	{
+		perror("socket");
+		goto error1;
+	}
+	if( connect(s, ai->ai_addr, ai->ai_addrlen) < 0 )
+	{
+		perror( server );
+		goto error2;
+	}
+	freeaddrinfo( ai );
+	return( s );
+error2:
+	close( s );
+error1:
+	freeaddrinfo( ai );
+error0:
+	return( -1 );
+}
+
+int
+fdopen_sock( int sock, FILE **inp, FILE **outp )
+{
+	int sock2 ;
+	if( (sock2=dup(sock)) < 0 )
+	{
+		return( -1 );
+	}
+	if( (*inp = fdopen( sock2, "r" )) == NULL )
+	{
+		close( sock2 );
+		return( -1 );
+	}
+	if( (*outp = fdopen( sock, "w" )) == NULL )
+	{
+		fclose( *inp );
+		*inp = 0 ;
+		return( -1 );
+	}
+	setvbuf(*outp, (char *)NULL, _IONBF, 0);
+	return( 0 );
+}
+
+実行結果を以下に示す．
+
+aloe55:kadai6 s1913557$ ./wcat www.coins.tsukuba.ac.jp 80 /~syspro/index.html
+HTTP/1.1 200 OK
+Date: Wed, 29 May 2019 02:07:53 GMT
+Server: Apache
+Last-Modified: Wed, 17 Apr 2019 05:11:43 GMT
+ETag: "758-586b2ebea987b"
+Accept-Ranges: bytes
+Content-Length: 1880
+Connection: close
+Content-Type: text/html
+
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html;charset=iso-2022-jp">
+<TITLE> システムプログラム
+</TITLE>
+<STYLE TYPE="text/css"><!--
+@import url(coins-syspro.css);
+--></STYLE>
+</HEAD>
+
+<BODY>
+
+<H1><A ID="title">システムプログラム</A></H1>
+
+</P><P>
+
+<H2><A ID="2017/" HREF="2019/">■2019年</A></H2>
+<H2><A ID="2017/" HREF="2018/">■2018年</A></H2>
+<H2><A ID="2017/" HREF="2017/">■2017年</A></H2>
+<H2><A ID="2016/" HREF="2016/">■2016年</A></H2>
+<H2><A ID="2015/" HREF="2015/">■2015年</A></H2>
+<H2><A ID="2014/" HREF="2014/">■2014年</A></H2>
+<H2><A ID="2013/" HREF="2013/">■2013年</A></H2>
+<H2><A ID="2012/" HREF="2012/">■2012年</A></H2>
+<H2><A ID="2011/" HREF="2011/">■2011年</A></H2>
+<H2><A ID="2010/" HREF="2010/">■2010年</A></H2>
+<H2><A ID="2009/" HREF="2009/">■2009年</A></H2>
+<H2><A ID="2008/" HREF="2008/">■2008年</A></H2>
+<H2><A ID="2007/" HREF="2007/">■2007年</A></H2>
+<H2><A ID="2006/" HREF="2006/">■2006年</A></H2>
+<H2><A ID="2005/" HREF="2005/">■2005年</A></H2>
+
+<H2><A ID="links">■関連ページ</A></H2>
+
+<UL>
+<LI> <A HREF="http://www.tsukuba.ac.jp/">筑波大学</A>
+<LI> <A HREF="http://www.coins.tsukuba.ac.jp/">情報科学類</A>
+<LI> <A HREF="http://www.sie.tsukuba.ac.jp/">システム情報工学研究科</A>
+<LI> <A HREF="http://www.cs.tsukuba.ac.jp/">コンピュータサイエンス専攻</A>
+<LI> <A HREF="http://www.cs.tsukuba.ac.jp/~oyama/">大山のホーム・ページ</A>
+<LI> <A HREF="http://www.cs.tsukuba.ac.jp/~yas/">新城のホーム・ページ</A>
+</UL>
+
+
+<HR>
+Last updated: 2017/04/13 17:17:09
+ <BR>
+<ADDRESS> <A HREF="http://www.cs.tsukuba.ac.jp/~yas/">Yasushi Shinjo</A> / &lt;yas@is.tsukuba.ac.jp&gt; </ADDRESS>
+</BODY>
+</HTML>
+aloe55:kadai6 s1913557$
+----------------------------------------------------------------------
