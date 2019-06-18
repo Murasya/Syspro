@@ -1,0 +1,180 @@
+﻿----------------------------------------------------------------------
+学籍番号: 201913557
+名前: 村社光誠
+課題番号：2
+練習問題番号：205, 207
+題名：Cライブラリの自作
+
+＜内容＞
+・問題205
+この問題では、strlcpy と strdupと同じ機能を持ったものを自作する。
+以下にプログラムを示す。
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define STRING_SIZE 100
+#define STRING_SIZE2 11
+
+size_t my_strlcpy(char *dst, const char *src, size_t size);
+char *my_strdup(const char *string);
+
+int main(void)
+{
+  int n1, n2;
+  char str0[STRING_SIZE] = "abcdefg0123456789";
+  char str1[STRING_SIZE2], str2[STRING_SIZE2], *str3, *str4;
+  
+  n1 = strlcpy(str1, str0, STRING_SIZE2);
+  n2 = my_strlcpy(str2, str0, STRING_SIZE2);
+  str3 = strdup(str0);
+  str4 = my_strdup(str0);
+  
+  printf("元データ  : %s\n", str0);
+  printf("strlcpy   : %s, %d\n", str1, n1);
+  printf("my_strlcpy: %s, %d\n", str2, n2);
+  printf("strdup    : %s\n", str3);
+  printf("my_strdup : %s\n", str4);
+  
+  free(str3);
+  free(str4);
+  return 0;
+}
+
+size_t my_strlcpy(char *dst, const char *src, size_t size)
+{
+  int i;
+  for (i = 0; i < size-1; i++) {
+    dst[i] = src[i];
+    if (dst[i] == '\0')
+      break;
+  }
+  if (i == size-1)
+    dst[i] = '\0';
+  return strlen(src);
+}
+
+char *my_strdup(const char *string)
+{
+  int i;
+  char *dup;
+  if ((dup = malloc(strlen(string)+1)) == NULL){
+    fprintf(stderr, "malloc error");
+    exit(1);
+  }
+  for (i = 0; i < strlen(string); i++){
+    dup[i] = string[i];
+  }
+  return dup;
+}
+
+プログラムに示すように、my_strlcpy と my_strdup を作成した。
+また、実行結果を以下に示す。
+
+loe66:syspro s1913557$ gcc 205.c
+aloe66:syspro s1913557$ ./a.out
+元データ  : abcdefg0123456789
+strlcpy   : abcdefg012, 17
+my_strlcpy: abcdefg012, 17
+strdup    : abcdefg0123456789
+my_strdup : abcdefg0123456789
+aloe66:syspro s1913557$ gcc 205.c
+aloe66:syspro s1913557$ ./a.out
+元データ  : 0123456789
+strlcpy   : 0123456789, 10
+my_strlcpy: 0123456789, 10
+strdup    : 0123456789
+my_strdup : 0123456789
+
+このように、my_strlcpy, my_strdup 共にライブラリの関数と同じ動作を
+しているのがわかる。
+
+・課題207
+ この課題では strlen を自作し、その実行速度について考える。
+プログラムを以下に示す。
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#define SIZE 1000000000
+#define LOOP_NUM 3
+
+size_t my_strlen1(const char *s);
+size_t my_strlen2(const char *s);
+
+int main(void)
+{
+  long i, j, n1, n2, n3;
+  char *str0;
+  clock_t st[3], en[3];
+  double t[3]={0};
+
+  str0 = (char *)malloc(SIZE+3);
+
+  memset(str0, '1', SIZE);
+
+  for (i = 0; i < LOOP_NUM; i++){
+    st[1] = clock();
+    n2 = my_strlen1(str0);
+    en[1] = clock();
+
+    st[2] = clock();
+    n3 = my_strlen2(str0);
+    en[2] = clock();
+
+    st[0] = clock();
+    n1 = strlen(str0);
+    en[0] = clock();
+
+    for (j = 0; j < 3; j++){
+      t[j] += (double)(en[j]-st[j])/CLOCKS_PER_SEC;
+    }
+  }
+
+
+  printf("strlen: %ld\nmy_strlen1: %ld\nmy_strlen2: %ld\n", n1, n2, n3);
+  printf("strlen     time: %fs\n", t[0]/LOOP_NUM);
+  printf("my_strlen1 time: %fs\n", t[1]/LOOP_NUM);
+  printf("my_strlen2 time: %fs\n", t[2]/LOOP_NUM);
+
+  free(str0);
+  return 0;
+}
+
+size_t my_strlen1(const char *s)
+{
+  long i = 0;
+  while (s[i] != '\0') {
+    i++;
+  }
+  return i;
+}
+
+size_t my_strlen2(const char *s)
+{
+  size_t len = 0;
+  for(;;){
+    unsigned x = *(unsigned*)s;
+    if ((x & 0xff) == 0) return len;
+    if ((x & 0xff00) == 0) return len + 1;
+    if ((x & 0xff0000) == 0) return len + 2;
+    if ((x & 0xff000000) == 0) return len + 3;
+    s += 4, len += 4;
+  }
+}
+
+実行結果は以下のようになった．
+
+strlen: 1000000000
+my_strlen1: 1000000000
+my_strlen2: 1000000000
+strlen     time: 0.168667s
+my_strlen1 time: 2.108333s
+my_strlen2 time: 0.719000s
+
+この実行結果から、正しく my_strlen が作成できていることがわかる。
+また、my_strlen1 では線形にNULL文字を調べていて実行時間が掛かったが、
+my_strlen2 ではAND演算を用いることで一度のループで4文字分調べているため，
+my_strlen1の約4倍の速度で実行できていることがわかる．
+----------------------------------------------------------------------

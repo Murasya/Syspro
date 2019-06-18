@@ -1,0 +1,88 @@
+----------------------------------------------------------------------
+学籍番号: 201913557
+名前: 村社光誠
+課題番号：1
+練習問題番号：102
+題名：segmentation fault の直し方
+
+  まずは segmentation fault が発生するプログラムを以下に示す。
+
+#include<stdio.h>
+
+void loop()
+{
+  loop();
+}
+
+int main()
+{
+  loop();
+  return 0;
+}
+
+このプログラムを実行すると、
+Segmentation fault: 11
+というエラーが表示される。
+そこで、gdbを用いてデバッグを行う。
+gdbを起動し、run をすると以下のように表示された。
+(gdb) run
+Starting program: /home/ugrad/17/s1913557/Documents/a.out
+[New Thread 0x1803 of process 52569]
+warning: unhandled dyld version (15)
+
+Thread 2 received signal SIGSEGV, Segmentation fault.
+loop () at 102.c:5
+5	  loop();
+
+これにより、プログラムの５行目で Segmentation fault が発生していることがわかる。
+そこで次は backtrace を行ってみると以下のように表示された。
+
+(gdb) backtrace
+#0  loop () at 102.c:5
+#1  0x0000000100000f89 in loop () at 102.c:5
+#2  0x0000000100000f89 in loop () at 102.c:5
+#3  0x0000000100000f89 in loop () at 102.c:5
+#4  0x0000000100000f89 in loop () at 102.c:5
+#5  0x0000000100000f89 in loop () at 102.c:5
+#6  0x0000000100000f89 in loop () at 102.c:5
+#7  0x0000000100000f89 in loop () at 102.c:5
+#8  0x0000000100000f89 in loop () at 102.c:5
+#9  0x0000000100000f89 in loop () at 102.c:5
+#10 0x0000000100000f89 in loop () at 102.c:5
+#11 0x0000000100000f89 in loop () at 102.c:5
+#12 0x0000000100000f89 in loop () at 102.c:5
+#13 0x0000000100000f89 in loop () at 102.c:5
+#14 0x0000000100000f89 in loop () at 102.c:5
+#15 0x0000000100000f89 in loop () at 102.c:5
+#16 0x0000000100000f89 in loop () at 102.c:5
+#17 0x0000000100000f89 in loop () at 102.c:5
+#18 0x0000000100000f89 in loop () at 102.c:5
+#19 0x0000000100000f89 in loop () at 102.c:5
+#20 0x0000000100000f89 in loop () at 102.c:5
+#21 0x0000000100000f89 in loop () at 102.c:5
+#22 0x0000000100000f89 in loop () at 102.c:5
+#23 0x0000000100000f89 in loop () at 102.c:5
+
+これによって、loop() 関数において無限ループが行われていることが想像できる。
+なので、元のプログラムを以下のように変更する。
+
+#include<stdio.h>
+#define N 5
+
+void loop(int i)
+{
+  if (i > 5)
+    return;
+  loop(++i);
+}
+
+int main()
+{
+  int i = 0;
+  loop(i);
+  return 0;
+}
+
+こうすることで、loop()関数が最大５回までしか実行されなくなるため正常終了することができる。
+最終的には実行結果に何も表示されない。
+----------------------------------------------------------------------
